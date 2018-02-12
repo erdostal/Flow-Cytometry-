@@ -4,15 +4,21 @@ library(ggmap)
 library(dplyr)
 library(broom)
 
+
 #Import data set
 flow <- read.csv("Hirsutum.csv", header = TRUE)
 
 
 #Plot data unmodified 
 plot (GenomeSize.mgb ~ Variety, data = flow,
-     xlab = "Variety: Domesticated or Wild",
-     ylab = "Corrected Genome size (mgb)",
+     xlab = "Variety",
+     ylab = "Genome size (mgb)",
      main = "Genome Size by Variety Type"
+)
+plot (GenomeSize.mgb ~ Accession, data = flow,
+      xlab = "Accession",
+      ylab = "Genome size (mgb)",
+      main = "Genome Size by Accession"
 )
 
 #Plot data unmodified 
@@ -52,6 +58,7 @@ qqmath( ~ resid(flow.modpg),
 #Test significance between variety and genome size
 flowANOVA <- aov(GenomeSize.mgb ~ Variety, data = flow)
 summary(flowANOVA)
+
 flowANOVA <- aov(GenomeSize.pg ~ Variety, data = flow)
 summary(flowANOVA)
 
@@ -73,25 +80,32 @@ mapPoints <- ggmap(map) +
 ### Find averages of each accessions
 flow.averages <- aggregate(flow[, 8], list(flow$Accession), mean)
 flow.SD <- aggregate(flow[, 8], list(flow$Accession), sd)
-group <- c("Acala", "Coker_315", "DP90", "FM966", "Hopi", "TM1", "TX_6", "TX_12", "TX_44", "TX_109", "TX_180", "TX_279")
-mean <- flow.averages$x
-mean <-as.integer(mean)
-SD <- flow.SD$x
-SD <- as.integer(SD)
-Variety <- c(1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
-stats <- cbind(mean, SD, Variety)
-SummaryStatistics <- as.matrix(SummaryStatistics)
+stats <- cbind(flow.averages$x,flow.SD$x)
+stats <- as.data.frame(stats)
+stats$CV <- stats$SD / stats$Average
+Accessions <- unique(as.character(flow$Accession))
+Variety <- c("Domesticated", "Domesticated", "Domesticated", "Domesticated", "Domesticated","Domesticated", 
+             "Landrace", "Landrace", "Landrace", "Landrace", "Domesticated", "Landrace", "Landrace", "Landrace", 
+             "Landrace", "Landrace", "Landrace", "Landrace", "Landrace", "Landrace", "Wild", "Landrace", "Wild", 
+             "Landrace", "Landrace", "Landrace", "Landrace", "Landrace", "Landrace", "Landrace", "Landrace", 
+             "Landrace", "Landrace", "Landrace", "Domesticated", "Landrace", "Landrace", "Wild", "Wild", 
+             "Landrace", "Landrace")
+stats$Accession <- Accessions
+stats$Variety <- Variety
+## Write new table with Standard Deviation and CV into a file
+write.csv(stats, "HirsutumCV.csv")
 
-Accessions <- read.csv("Accessions.csv")
-TX_6SingleT <- t.test(Accessions$TX_0006, mu=2396)
-TX_12SingleT <- t.test(Accessions$TX_0012, mu=2396)
+# Plot Accession genome size averages with error bars
+library(Hmisc)
+yplus <- stats$Average + stats$SD
+yminus <- stats$Average - stats$SD
 
+errbar(stats$Accession, stats$Average, yplus, yminus)
+plot(flow$Accession, flow$GenomeSize.mgb, )
 
-###Finding how many reads in 1% of the genome ###
-flow.averages$basepairs <- flow.averages$x * 1000000
-flow.averages$NumberReads <- flow.averages$basepairs / 95
-flow.averages$OnePercent <- flow.averages$NumberReads * .01
-write.csv(flow.averages, "OnePercentReads.csv")
+## Find average/sd for wild/landrace/domesticated
+Variety.averages <- aggregate(flow[, 8], list(flow$Variety), mean)
+Variety.SD <- aggregate(flow[, 8], list(flow$Variety), sd)
 
 ##################### REPEAT EXPLORER ##########################
 Hcluster <- read.csv("HirsutumCluster.csv", header = TRUE)
